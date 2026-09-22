@@ -1,0 +1,3 @@
+include LICENSE NOTICE
+recursive-include designs *.md
+recursive-include src/tests *.py

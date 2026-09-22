@@ -1,0 +1,12 @@
+{
+  "file": "blue-marble-200408.jpg",
+  "title": "August, Blue Marble: Next Generation, with topography and bathymetry",
+  "credit": "Reto Stöckli, NASA Earth Observatory",
+  "data_period": "2004-08",
+  "source": "https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73776/world.topo.bathy.200408.3x5400x2700.jpg",
+  "width": 5400,
+  "height": 2700,
+  "projection": "equirectangular",
+  "bounds_degrees": [-180, -90, 180, 90],
+  "sha256": "f76d7b94445e8975a755c849ddaa93ed07b7e01118fb0b7e6bc5546a68c18d5c"
+}
