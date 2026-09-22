@@ -1,6 +1,8 @@
 # StrataScry GGM
 StrataScry Geospatial Graph Modeler (GGM) is a geospatial graph modeling tool under development for constructing and analyzing multilayer networks over map imagery. Its planned capabilities include user-defined layers, configurable node and edge attributes, and hazard objects that influence edges through proximity or specific selection. Analysts define scoring models using additive contributions, net multipliers applied to an edge’s combined score, and tag-filtered multipliers applied to selected hazard contributions. The project aims to support geospatial network modeling and route analysis.
 
+StrataScry GGM is a personal project of mine. Generative AI has been used for code.
+
 # Attributions
 - StrataScry GGM uses NASA Earth Observatory's Blue Marble: Next Generation's imagery from 2004 for the basemap.
 - A personal thank you to Bobby Cupps for reminding me that if we have N layers, and for all layers, if every edge is weighted from 0 to 1, then we can bound the sum of a set of corresponding edges simply by dividing it by N. Simple in retrospect, but it never crossed my mind in our conversation.
