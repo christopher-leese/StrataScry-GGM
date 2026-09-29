@@ -18,9 +18,7 @@ overview while visible detail loads, and supports the full 86,400 × 43,200 sour
 grid when the local tile set is installed. Navigation and imagery controls are
 under the native macOS **View** menu. Graph editing and analysis are not implemented yet.
 
-Use Python 3.10 or newer with a working desktop graphics environment. On this
-Mac, use the Homebrew Python (`/opt/homebrew/bin/python3`); the system Python
-3.9 is too old. From the repository root:
+Use Python 3.10 or newer with a working desktop graphics environment. From the repository root:
 
 ```sh
 python3 -m venv .venv
