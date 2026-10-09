@@ -6,7 +6,9 @@ Related: [map packages](map-packages-plan.md).
 Update: version 0.4 implemented degree-based decluttering with different
 parameters (24-pixel screen cells and a round-robin per-layer allowance) and no
 summarized edges; see [graph editor implementation](graph-editor-implementation.md#display-and-optimization).
-The remaining ideas here are still candidates.
+The remaining ideas here are still candidates. Next steps: the
+[LOD tuning plan](lod-tuning-plan.md) and
+[importance attribute notes](importance-attribute-notes.md).
 
 ## User direction and scope
 

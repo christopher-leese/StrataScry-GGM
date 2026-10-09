@@ -10,6 +10,7 @@ before 0.4.0 were reconstructed from the design and verification records in
 ## [Unreleased]
 
 ### Added
+- `designs/lod-tuning-plan.md` (proposed) and `designs/importance-attribute-notes.md`.
 - GUI test that project file commands live under File, ahead of Quit.
 - This changelog, included in source distributions.
 
