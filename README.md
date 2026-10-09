@@ -16,7 +16,8 @@ The current implementation is a Python desktop globe viewer with **tiled NASA
 Blue Marble imagery**. It opens with Blue Marble alone, uses a lightweight global
 overview while visible detail loads, and supports the full 86,400 × 43,200 source
 grid when the local tile set is installed. Navigation and imagery controls are
-under the native macOS **View** menu. Graph editing and analysis are not implemented yet.
+under the native macOS **View** menu. Basic graph editing, layers, project saving, and edge weight properties are available.
+Hazard scoring and pathfinding remain future work.
 
 Use Python 3.10 or newer with a working desktop graphics environment. From the repository root:
 
@@ -31,7 +32,7 @@ After the environment is installed, launch directly with
 `.venv/bin/python -m stratascry` or `.venv/bin/stratascry`.
 The viewer works offline after installation; no API key or paid service is needed.
 
-- **Rotate:** left drag or arrow keys.
+- **Rotate:** right drag or arrow keys.
 - **Zoom:** scroll, Command + / −, or View → Zoom In / Out.
 - **Reset:** Command 0 or View → Reset View.
 - **Context menu:** right-click, Control-click, Shift F10, or View → Show Context Menu.
@@ -60,6 +61,46 @@ The previous terrain-package implementation and examples are retained behind
 `python -m stratascry --map-packages`. They are disabled in normal prototype
 startup; the [package guide](designs/map-packages-implementation.md) documents
 that separate experiment.
+
+## Edit a graph
+
+1. Press **B** over the globe to enable building mode. In the layer panel, select
+   `Network` and click **Active**. Viewing mode is read-only; an active layer is
+   optional while inspecting the map.
+2. Click **Add Node** in the hotbar above the globe. Move the cursor without
+   holding a button to preview a node, then click to place it. Click the selected
+   Add Node icon again (or its dropdown arrow) for **Add node by clicking** or
+   **Add node by coordinates…**. Coordinate placement is a single undoable command;
+   click placement remains the default. Escape cancels a draft.
+3. Choose **Add Edge** and click a source node, optional shape-waypoint locations,
+   and a target node. The same tool supports distinct parallel connections.
+4. Use **Select / Move** to inspect an object or drag a node/edge-shape handle.
+   Moving a node preserves its edge attachments. The highest visible layer with
+   a hit wins; inactive objects are inspectable but cannot be dragged.
+5. Open **Object / Edge Properties…** to rename objects, edit coordinates, type
+   attributes, change direction, and choose an unassigned, manual, or length-based
+   weight. Geographic length is independent of zoom and drawing style.
+6. Use **View → Graph Project → Save Graph Project** (Command S). Projects are
+   local `.ssg.json` documents; imagery stays separate. Graph and saved display
+   edits share one undo history. Layer deletion confirms and removes its contents
+   as one undoable change.
+
+A [small fictional example project](src/stratascry/assets/example-graph.ssg.json)
+contains two routes between the same nodes; open it through Graph Project.
+
+The hotbar provides **Select / Move**, **Add Node**, and **Add Edge** with the same
+permissions and selection state as **View → Graph Tools**. Additional tools and
+optional menus use a shared [hotbar definition](designs/graph-hotbar.md); narrow
+windows expose tools through an overflow menu.
+
+All graph commands are also available through the right-click context menu.
+A right drag navigates without opening it. Layer order, visibility, color, pins,
+dimming and decluttering are saved edits requiring building mode. Selected objects
+and temporary neighbor reveals do not modify the project.
+
+See [the editor implementation guide](designs/graph-editor-implementation.md),
+[the implementation plan](designs/nodes-and-edges-plan.md), and
+[the verification record](designs/graph-editor-verification.md).
 
 ## Development and design
 
