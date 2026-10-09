@@ -26,7 +26,7 @@ def create_application(argv=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="StrataScry Blue Marble globe prototype")
+    parser = argparse.ArgumentParser(description="StrataScry GGM prototype, designed for geospatial network modeling and route analysis")
     parser.add_argument("--map-packages", action="store_true",
                         help="Enable the experimental regional terrain tools")
     args, qt_args = parser.parse_known_args()

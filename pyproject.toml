@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stratascry-ggm"
 version = "0.4.0"
-description = "A geographic graph editor on a tiled Blue Marble globe"
+description = "StrataScry Geospatial Graph Modeler prototype. Designed for geospatial network modeling and route analysis."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"

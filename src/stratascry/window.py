@@ -109,12 +109,12 @@ class MainWindow(QMainWindow):
     def _build_menus(self):
         bar = self.menuBar()
         bar.setNativeMenuBar(True)
-        file_menu = bar.addMenu("&File")
-        quit_action = QAction("Quit StrataScry GGM", self)
-        quit_action.setMenuRole(QAction.MenuRole.QuitRole)
-        quit_action.setShortcut(QKeySequence.StandardKey.Quit)
-        quit_action.triggered.connect(self.close)
-        file_menu.addAction(quit_action)
+        self.file_menu = bar.addMenu("&File")
+        self.quit_action = QAction("Quit StrataScry GGM", self)
+        self.quit_action.setMenuRole(QAction.MenuRole.QuitRole)
+        self.quit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        self.quit_action.triggered.connect(self.close)
+        self.file_menu.addAction(self.quit_action)
 
         # Qt's portable Ctrl modifier is Command on macOS.
         self._action("zoom_in", "Zoom In", lambda: self.globe.zoom(1), ("Ctrl++", "Ctrl+=", "+", "="))

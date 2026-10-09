@@ -60,10 +60,10 @@ assumption is imposed. Combining length and hazard contributions is deferred.
 - **B** toggles building mode, scoped to the globe so typing B in a field is safe.
 - **Right drag** navigates in either mode. A stationary right click opens the
   context menu. Arrow keys, scroll and Command +/- remain available.
-- **Add Node** shows a hover ghost without a held button. An ordinary click
-  commits on release after drag discrimination. Add Edge uses the same convention
-  for endpoints and optional controls; duplicate connections require an explicit
-  continuation of the ordinary Add Edge workflow.
+- **Add Node** shows a hover ghost without a held button, avoiding click-and-hold
+  fatigue. An ordinary click commits on release after drag discrimination. Add
+  Edge uses the same convention for endpoints and optional controls; duplicate
+  connections require an explicit continuation of the ordinary Add Edge workflow.
 - **Select / Move** selects or drags a movable node/handle. The highest visible
   layer containing a hit wins before object-type priority. Same-layer overlaps
   appear in the inspector's candidate list. Edge bodies do not translate routes.
@@ -78,8 +78,9 @@ assumption is imposed. Combining length and hazard contributions is deferred.
 - Escape and tool/mode changes cancel drafts; focus loss cancels transient drags.
   New/Open/Close handle unsaved work. Closing waits for raster/project workers.
 
-All controls are exposed under native View submenus and shared in the context
-menu. The [graph hotbar](graph-hotbar.md) above the globe adds icon shortcuts for
+Project file commands (New / Open / Save / Save As) are under the native File
+menu. All other controls are exposed under native View submenus (Graph Tools,
+Graph Display, Graph Layers) and shared in the context menu. The [graph hotbar](graph-hotbar.md) above the globe adds icon shortcuts for
 Select / Move, Add Node, and Add Edge; selected tools can expose variant menus.
 The layer panel offers shortcut buttons to the same controller operations.
 The initial active layer is empty; choose a visible layer explicitly to edit.

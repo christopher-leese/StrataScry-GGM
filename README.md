@@ -1,5 +1,5 @@
 # StrataScry GGM
-StrataScry Geospatial Graph Modeler (GGM) is a geospatial graph modeling prototype under development for constructing and analyzing multilayer networks over map imagery. Its planned capabilities include user-defined layers, configurable node and edge attributes, and hazard objects that influence edges through proximity or specific selection. Analysts define scoring models using additive contributions, net multipliers applied to an edge’s combined score, and tag-filtered multipliers applied to selected hazard contributions. The project aims to support geospatial network modeling and route analysis.
+StrataScry Geospatial Graph Modeler (GGM) is a geospatial graph modeling prototype under development for constructing and analyzing multilayer networks over map imagery. Its planned capabilities include user-defined layers, configurable node and edge attributes, and hazard objects that influence edges through proximity or specific selection. Analysts define scoring models using additive contributions, net multipliers applied to an edge’s combined score, and tag-filtered multipliers applied to selected hazard contributions. Designed for geospatial network modeling and route analysis.
 
 StrataScry GGM is a personal project of mine. Generative AI has been used for code.
 
@@ -16,7 +16,7 @@ The current implementation is a Python desktop globe viewer with **tiled NASA
 Blue Marble imagery**. It opens with Blue Marble alone, uses a lightweight global
 overview while visible detail loads, and supports the full 86,400 × 43,200 source
 grid when the local tile set is installed. Navigation and imagery controls are
-under the native macOS **View** menu. Basic graph editing, layers, project saving, and edge weight properties are available.
+under the native macOS **View** menu. Basic [graph editing](#edit-a-graph), layers, project saving, and edge weight properties are available.
 Hazard scoring and pathfinding remain future work.
 
 Use Python 3.10 or newer with a working desktop graphics environment. From the repository root:
@@ -80,13 +80,13 @@ that separate experiment.
 5. Open **Object / Edge Properties…** to rename objects, edit coordinates, type
    attributes, change direction, and choose an unassigned, manual, or length-based
    weight. Geographic length is independent of zoom and drawing style.
-6. Use **View → Graph Project → Save Graph Project** (Command S). Projects are
+6. Use **File → Save Graph Project** (Command S). Projects are
    local `.ssg.json` documents; imagery stays separate. Graph and saved display
    edits share one undo history. Layer deletion confirms and removes its contents
    as one undoable change.
 
 A [small fictional example project](src/stratascry/assets/example-graph.ssg.json)
-contains two routes between the same nodes; open it through Graph Project.
+contains two routes between the same nodes; open it with **File → Open Graph Project…** (Command O).
 
 The hotbar provides **Select / Move**, **Add Node**, and **Add Edge** with the same
 permissions and selection state as **View → Graph Tools**. Additional tools and
@@ -109,11 +109,16 @@ conventions, requirement traceability, and interaction contract are in
 [designs/globe-viewer.md](designs/globe-viewer.md). Executed checks are recorded
 in [designs/verification.md](designs/verification.md) for the initial globe and
 [designs/map-packages-verification.md](designs/map-packages-verification.md) for
-regional maps. NASA asset provenance
+regional maps. The version 0.4 graph editor is described in
+[designs/graph-editor-implementation.md](designs/graph-editor-implementation.md),
+planned in [designs/nodes-and-edges-plan.md](designs/nodes-and-edges-plan.md), and
+verified in [designs/graph-editor-verification.md](designs/graph-editor-verification.md);
+the toolbar is specified in [designs/graph-hotbar.md](designs/graph-hotbar.md).
+Release history is in [CHANGELOG.md](CHANGELOG.md). NASA asset provenance
 and usage references are in [the imagery attribution](src/stratascry/assets/ATTRIBUTION.md).
 
 ```sh
-python -m pytest                                      # geometry, assets and raster packages
+python -m pytest                                      # geometry, assets, raster packages and graph model
 STRATASCRY_GUI_TESTS=1 python -m pytest                # include desktop GUI checks
 python -m build                                      # source distribution and wheel
 ```

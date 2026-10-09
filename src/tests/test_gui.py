@@ -51,7 +51,16 @@ def test_native_view_contains_all_context_actions(window):
     if sys.platform == "darwin":
         assert window.menuBar().isNativeMenuBar()
     assert set(menu_actions(window.context_menu)) <= set(menu_actions(window.view_menu))
-    assert set(window.actions.values()) <= set(menu_actions(window.view_menu))
+    assert set(window.actions.values()) <= set(menu_actions(window.view_menu)) | set(menu_actions(window.file_menu))
+
+
+def test_graph_project_commands_live_under_file(window):
+    file_actions = set(menu_actions(window.file_menu))
+    for key in ("graph_new", "graph_open", "graph_save", "graph_save_as"):
+        assert window.actions[key] in file_actions
+        assert window.actions[key] not in set(menu_actions(window.view_menu))
+        assert window.actions[key] not in set(menu_actions(window.context_menu))
+    assert window.file_menu.actions()[-1] is window.quit_action
 
 
 def test_menu_zoom_reset_and_grid(window):

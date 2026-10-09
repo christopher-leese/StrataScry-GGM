@@ -433,7 +433,8 @@ All commands are available through **View**, using submenus to contain growth:
   Edge Properties…, edge direction and shape commands.
 - **View → Graph Display:** show graph, pin/unpin, reveal hidden neighbors,
   decluttering, basemap dimming, layer list and inspector visibility.
-- **View → Graph Project:** new/open/save/save as, plus layer management.
+- **File:** New / Open / Save / Save As Graph Project (moved from View on 2026-10-08).
+- **View → Graph Layers:** layer management (formerly View → Graph Project).
 
 The context menu reuses the same QAction instances and enabled states. Existing
 navigation stays in View; Quit remains the standard application lifecycle item.

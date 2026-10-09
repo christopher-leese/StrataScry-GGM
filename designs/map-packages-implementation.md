@@ -1,6 +1,6 @@
 # Regional map packages — implementation
 
-Current prototype direction: [tiled Blue Marble](blue-marble-prototype.md). Regional terrain tools remain an opt-in experiment via `--map-packages`.
+Current prototype direction: [tiled Blue Marble](blue-marble-prototype.md). Regional terrain tools remain an opt-in experiment via `--map-packages`; they were demoted in version 0.3 because the regional relief looked visually poor next to Blue Marble, and stage 3 is dormant.
 
 Implemented September 20, 2026, in version 0.2.0. This is the first usable
 increment (stages 0–2) of the [approved plan](map-packages-plan.md).

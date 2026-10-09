@@ -3,7 +3,9 @@
 Status: initial desktop viewer design, with navigation updated for regional maps.
 See [tiled Blue Marble](blue-marble-prototype.md) for the current version 0.3 display and navigation limits.
 The [regional map implementation](map-packages-implementation.md) records the version 0.2 experiment. This document covers the globe
-and its navigation; graph editing and hazard scoring remain future work.
+and its navigation. Version 0.4 adds basic graph editing; see the
+[graph editor implementation](graph-editor-implementation.md). Hazard scoring and
+pathfinding remain future work.
 
 ## Objective and scope
 
@@ -21,7 +23,7 @@ VTK renders the textured geometry. Python does not draw each pixel.
 | ID | Requirement | Function | Logical component | Implementation / verification |
 |---|---|---|---|---|
 | GV-01 | Display a textured 3D globe | Map equirectangular imagery onto sphere | Geometry + renderer | `geometry.globe_mesh_data`, `globe.GlobeView`; mesh and asset tests, visual check |
-| GV-02 | Left drag surveys the globe | Convert pointer displacement to longitude / latitude | Navigation state | `GlobeCamera.orbit`, Qt mouse events; camera tests and GUI drag test |
+| GV-02 | Right drag surveys the globe (left drag before version 0.4; left button is now reserved for graph tools) | Convert pointer displacement to longitude / latitude | Navigation state | `GlobeCamera.orbit`, `GlobeView.mouseMoveEvent`; camera tests and GUI right-drag test |
 | GV-03 | Wheel / trackpad, menus, and Command +/- zoom | Change camera distance within bounds | Navigation state + shared actions | `GlobeCamera.zoom`, `GlobeView.wheelEvent`, `MainWindow`; clamp and GUI tests |
 | GV-04 | Reset view | Restore canonical center and fit globe to viewport | Camera state | `GlobeCamera.reset`; aspect-ratio and action tests |
 | GV-05 | Every globe interaction is accessible under native View | Share actions among menu, shortcuts, and context menu | Action registry | `MainWindow._build_menus`; action parity test, macOS visual check |
@@ -66,12 +68,12 @@ menus are added to this initial viewer.
 
 | Operation | Pointer | Keyboard on macOS | View menu |
 |---|---|---|---|
-| Rotate | Left-button drag | Arrow keys, 10° per press | Rotate submenu |
+| Rotate | Right-button drag (left-button before 0.4) | Arrow keys, 10° per press | Rotate submenu |
 | Zoom in / out | Vertical wheel or trackpad scroll | Command + / −; bare + / − also work | Zoom In / Out |
 | Reset | — | Command 0 | Reset View |
 | Latitude / longitude grid | — | Command G | Show Latitude / Longitude Grid |
 | Full screen | macOS window control | Use View on macOS; F11 elsewhere | Enter / Exit Full Screen |
-| Context menu | Right-click or Control-click | Shift F10 | Show Context Menu |
+| Context menu | Right-click without dragging, or Control-click | Shift F10 | Show Context Menu |
 | Instructions | — | ? | Navigation Help |
 | Attribution | — | — | Imagery Credits |
 
@@ -125,6 +127,9 @@ Unlit imagery preserves the readable basemap over the entire visible hemisphere;
 there is no simulated sun or day/night masking. Topographic shading belongs to
 the image, not to the mesh. Zooming enlarges a single texture and cannot reveal
 new detail. A tile pyramid would be a separate future feature for closer views.
+*Update:* version 0.3 implemented tiling; this 5400 × 2700 image is now the
+immediate overview layer, with local detail tiles loaded on demand. See
+[tiled Blue Marble](blue-marble-prototype.md).
 
 Source and usage references are in `src/stratascry/assets/ATTRIBUTION.md`.
 No image fetch, API key, account, or external service is used at runtime. The

@@ -1,6 +1,6 @@
 # Regional map packages — preliminary implementation plan
 
-Current prototype direction: [tiled Blue Marble](blue-marble-prototype.md). Regional terrain tools remain an opt-in experiment via `--map-packages`.
+Current prototype direction: [tiled Blue Marble](blue-marble-prototype.md). Regional terrain tools remain an opt-in experiment via `--map-packages`; they were demoted in version 0.3 because the regional relief looked visually poor next to Blue Marble, and stage 3 is dormant.
 
 Date: September 20, 2026  
 Status: stages 0–2 implemented September 20, 2026; stage 3 remains planned.
@@ -17,7 +17,7 @@ pathfinding, and sensitivity analysis. Accurate road tracing, building imagery,
 and automatic extraction of a real-world road network are not required.
 
 User direction: prepare packages from NASADEM and USGS The National Map; make
-package coverage visible; exclude OSM from this scope. Keep map controls in
+package coverage visible; exclude OSM from this scope (licensing). Keep map controls in
 the native macOS View menu. Continue placing code under `src` and designs here.
 
 Map packages are visual background resources. Loading, hiding, dimming, or

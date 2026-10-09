@@ -92,12 +92,16 @@ class GraphController(QObject):
         self.actions={k:self.action(k,t,cb,sc,ch,go) for k,t,cb,sc,ch,go in specs}
         group=self.tool_group=QActionGroup(self); group.setExclusive(True)
         for k in ('select','node','edge'): group.addAction(self.actions[k])
+        # Project file commands live under File, ahead of Quit (which macOS moves to the app menu).
+        file_menu=self.window.file_menu
+        for key in ('new','open','save','save_as'): file_menu.insertAction(self.window.quit_action,self.actions[key])
+        file_menu.insertSeparator(self.window.quit_action)
         for menu in (self.window.view_menu,self.window.context_menu):
             menu.addSeparator()
             for title,keys in (
                 ('Graph Tools',('build','select','node','edge','cancel','properties','coordinate','delete','undo','redo','reverse','waypoint','remove_waypoint','definitions')),
                 ('Graph Display',('panel','pin','reveal','clear_reveal','declutter','dim','status')),
-                ('Graph Project',('new','open','save','save_as','add_layer','rename_layer','color_layer','delete_layer','visible_layer','active_layer','clear_active','up_layer','down_layer'))):
+                ('Graph Layers',('add_layer','rename_layer','color_layer','delete_layer','visible_layer','active_layer','clear_active','up_layer','down_layer'))):
                 sub=menu.addMenu(title)
                 for key in keys: sub.addAction(self.actions[key])
         self.dock.visibilityChanged.connect(lambda v:self.sync_checks())

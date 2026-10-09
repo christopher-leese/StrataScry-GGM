@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# macOS folder metadata
+.DS_Store
+
+# Local AI-assistant working folders (never committed)
+.claude-work/
+.codex/

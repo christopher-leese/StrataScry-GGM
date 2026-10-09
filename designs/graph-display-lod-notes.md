@@ -2,7 +2,11 @@
 
 Date: September 20, 2026  
 Status: candidate display rules; not an implementation plan approved for coding.  
-Related: [map packages](map-packages-plan.md).
+Related: [map packages](map-packages-plan.md).  
+Update: version 0.4 implemented degree-based decluttering with different
+parameters (24-pixel screen cells and a round-robin per-layer allowance) and no
+summarized edges; see [graph editor implementation](graph-editor-implementation.md#display-and-optimization).
+The remaining ideas here are still candidates.
 
 ## User direction and scope
 

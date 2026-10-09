@@ -4,6 +4,9 @@ September 28, 2026. Extends the [graph editor](graph-editor-implementation.md).
 
 ## Interaction contract
 
+Motivation: reaching graph tools through the right-click menu was slow, so the
+common tools get one-click icons, built generically so later tools can reuse them.
+
 A fixed icon hotbar sits between the imagery status and globe viewport, within
 the central viewer area. It provides Select / Move, Add Node, and Add Edge.
 The highlighted icon reflects the controller's selected tool. Tooltips and
