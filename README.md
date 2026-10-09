@@ -5,7 +5,7 @@ StrataScry GGM is a personal project of mine. Generative AI has been used for co
 
 # Attributions
 - StrataScry GGM uses NASA Earth Observatory's Blue Marble: Next Generation's imagery from 2004 for the basemap.
-- A personal thank you to Bobby Cupps for reminding me that if we have N layers, and for all layers, if every edge is weighted from 0 to 1, then we can bound the sum of a set of corresponding edges simply by dividing it by N. Simple in retrospect, but it never crossed my mind in our conversation.
+- A personal thank you to Bobby Cupps for reminding me that if we have N layers, and for all layers, if every edge is weighted from 0 to 1, then we can bound the sum of a set of corresponding edges simply by dividing it by N. Simple in retrospect, but it never crossed my mind during our conversation until mentioned.
 
 # On Licensing
 If StrataScry GGM contributes to your work, please (as a courtesy) acknowledge the project and link to this repository.
