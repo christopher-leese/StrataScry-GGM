@@ -1,0 +1,137 @@
+{
+  "format": "stratascry-graph",
+  "version": 1,
+  "id": "f7ce6866-1dbc-496a-9052-407612cfeb7c",
+  "distance": {
+    "kind": "sphere",
+    "radius_m": 6371008.8
+  },
+  "layers": [
+    {
+      "id": "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2",
+      "name": "Network",
+      "visible": true,
+      "color": "#62cde5",
+      "node_next": 4,
+      "edge_next": 4
+    }
+  ],
+  "nodes": [
+    {
+      "id": "5d2325c9-feda-4834-b993-89e46e1357b9",
+      "layer": "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2",
+      "lon": -90.18,
+      "lat": 25.02,
+      "seq": 0,
+      "name": "Hub",
+      "kind": "generic",
+      "attributes": {},
+      "template": null
+    },
+    {
+      "id": "61b27613-f3df-490b-a124-461bfaa8d361",
+      "layer": "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2",
+      "lon": -90.0,
+      "lat": 25.22,
+      "seq": 2,
+      "name": "Junction",
+      "kind": "junction",
+      "attributes": {},
+      "template": null
+    },
+    {
+      "id": "8237cf19-6934-4001-b80f-07a6327bf82d",
+      "layer": "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2",
+      "lon": -89.82,
+      "lat": 25.02,
+      "seq": 1,
+      "name": "Depot",
+      "kind": "generic",
+      "attributes": {},
+      "template": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "0000dc70-c0de-4c6c-995d-a4b93bff2f61",
+      "layer": "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2",
+      "source": "5d2325c9-feda-4834-b993-89e46e1357b9",
+      "target": "8237cf19-6934-4001-b80f-07a6327bf82d",
+      "seq": 1,
+      "name": "North route",
+      "directed": false,
+      "waypoints": [
+        {
+          "id": "ef6990bc-7e99-4091-9fba-bb185e1434a8",
+          "lon": -90.0,
+          "lat": 25.12
+        }
+      ],
+      "attributes": {},
+      "weight_mode": "manual",
+      "weight_value": 7,
+      "weight_scale": 1.0,
+      "weight_unit": "points"
+    },
+    {
+      "id": "5b7e8c6d-71df-46d5-a458-38303b56bfce",
+      "layer": "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2",
+      "source": "61b27613-f3df-490b-a124-461bfaa8d361",
+      "target": "8237cf19-6934-4001-b80f-07a6327bf82d",
+      "seq": 3,
+      "name": "",
+      "directed": true,
+      "waypoints": [],
+      "attributes": {},
+      "weight_mode": "unassigned",
+      "weight_value": 0.0,
+      "weight_scale": 1.0,
+      "weight_unit": "m"
+    },
+    {
+      "id": "65b31b2e-ce39-4cf2-84af-03eaeb618ca6",
+      "layer": "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2",
+      "source": "5d2325c9-feda-4834-b993-89e46e1357b9",
+      "target": "8237cf19-6934-4001-b80f-07a6327bf82d",
+      "seq": 0,
+      "name": "South route",
+      "directed": false,
+      "waypoints": [
+        {
+          "id": "c630aed1-82cc-4d94-bec8-7f70c761e293",
+          "lon": -90.0,
+          "lat": 24.96
+        }
+      ],
+      "attributes": {},
+      "weight_mode": "length",
+      "weight_value": 0.0,
+      "weight_scale": 0.001,
+      "weight_unit": "km"
+    },
+    {
+      "id": "bba0ca10-1163-46c4-824a-0cc94da655bd",
+      "layer": "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2",
+      "source": "5d2325c9-feda-4834-b993-89e46e1357b9",
+      "target": "61b27613-f3df-490b-a124-461bfaa8d361",
+      "seq": 2,
+      "name": "",
+      "directed": false,
+      "waypoints": [],
+      "attributes": {},
+      "weight_mode": "unassigned",
+      "weight_value": 0.0,
+      "weight_scale": 1.0,
+      "weight_unit": "m"
+    }
+  ],
+  "display": {
+    "order": [
+      "c1639dba-7eb4-4a57-9195-4a9b98e2dfc2"
+    ],
+    "pins": [],
+    "dim": 0.0,
+    "declutter": true,
+    "definitions": {}
+  }
+}

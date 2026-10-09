@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stratascry-ggm"
-version = "0.3.0"
-description = "A high-resolution Blue Marble globe prototype for StrataScry GGM"
+version = "0.4.0"
+description = "A geographic graph editor on a tiled Blue Marble globe"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -31,7 +31,7 @@ where = ["src"]
 include = ["stratascry*"]
 
 [tool.setuptools.package-data]
-stratascry = ["assets/*.jpg", "assets/*.md", "assets/*.json"]
+stratascry = ["assets/*.jpg", "assets/*.md", "assets/*.json", "assets/icons/*.svg"]
 
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]
