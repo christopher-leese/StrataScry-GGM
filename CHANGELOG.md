@@ -21,6 +21,11 @@ before 0.4.0 were reconstructed from the design and verification records in
 - This changelog, included in source distributions.
 
 ### Changed
+- Faster graph display: batch edge tessellation, vectorized ranking and edge budget,
+  and ranking refreshed about every 100 ms (and on settle) while the camera moves.
+  What is shown is unchanged. On the 10,000-node stress scene, first geometry
+  dropped from about 1.8 s to 0.17 s and redraw p95 from 91 ms to 30 ms.
+- LOD evaluation scenes use seeded IDs for reproducible display results.
 - Graph Project New / Open / Save / Save As moved from View to the **File** menu.
   The remaining layer commands are under **View → Graph Layers** (formerly Graph
   Project) and the context menu.

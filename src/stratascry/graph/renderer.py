@@ -11,12 +11,15 @@ import numpy as np
 from PySide6.QtCore import Qt, QPointF, QRectF, QTimer, QLineF
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
 from PySide6.QtWidgets import QWidget
-from .geometry import Projection, unit, tessellate
+from .geometry import Projection, unit, tessellate, tessellate_many
 
 NODE_BUDGET=1200
 EDGE_BUDGET=1200
 VERTEX_BUDGET=120_000
 GEOMETRY_BYTES=32*1024**2
+# Ranking refresh interval during camera motion, and the settle delay after it stops.
+RANK_REFRESH_S=0.1
+SETTLE_MS=120
 CELL=48
 
 
@@ -59,9 +62,14 @@ class GraphOverlay(QWidget):
         # Per-stage rebuild timings (ms, last 1000) for the benchmark; see lod-tuning-plan.md.
         self.stage_times=defaultdict(list)
         self.projection=Projection(controller.globe.navigation,controller.globe.width(),controller.globe.height())
-        self.timer=QTimer(self); self.timer.setSingleShot(True); self.timer.timeout.connect(self.rebuild)
+        self.timer=QTimer(self); self.timer.setSingleShot(True); self.timer.timeout.connect(lambda:self.rebuild(allow_stale=True))
+        self.rank_signature=None; self.rank_time=0.0; self.geometry_builds=0
+        self.ranked_winners=[]; self.ranked_shown=np.zeros(0,dtype=bool); self.ranked_edge_set=set()
+        self.settle_timer=QTimer(self); self.settle_timer.setSingleShot(True); self.settle_timer.timeout.connect(self.settle)
         self.setGeometry(controller.globe.rect())
         self.show(); self.raise_()
+
+    def settle(self): self.rebuild()
 
     def schedule(self):
         self.setGeometry(self.controller.globe.rect())
@@ -91,27 +99,56 @@ class GraphOverlay(QWidget):
     def build_geometry(self):
         d=self.controller.document
         self.node_ids=list(d.nodes)
+        self.node_index={k:i for i,k in enumerate(self.node_ids)}
         self.node_points=unit([(v.lon,v.lat) for v in d.nodes.values()]) if d.nodes else np.empty((0,3))
-        self.edge_ids=[]; a=[]; b=[]; owners=[]; count=0
+        self.node_layer=[d.nodes[k].layer for k in self.node_ids]
+        self.node_degree=np.fromiter((d.degree.get(k,0) for k in self.node_ids),dtype=float,count=len(self.node_ids))
+        # Rank of each ID in string order: the final, stable tie-breaker.
+        self.node_idrank=np.empty(len(self.node_ids),dtype=int)
+        self.node_idrank[np.argsort(np.array(self.node_ids,dtype=object))]=np.arange(len(self.node_ids))
+        self.old_mask=np.fromiter((k in self.old_survivors for k in self.node_ids),dtype=bool,count=len(self.node_ids))
         # Priority objects are included before ordinary model order at capacity.
         priority=set(d.settings['pins'])|({self.controller.selected} if self.controller.selected else set())
-        edges=sorted(d.edges.values(),key=lambda e:(e.id not in priority,e.id))
+        edges=[e for e in sorted(d.edges.values(),key=lambda e:(e.id not in priority,e.id)) if d.layers[e.layer].visible]
+        # Tessellate uncached edges in one batch; a local map survives cache eviction.
+        missing=[e for e in edges if (e.id,self.detail_level) not in self.cache]
+        fresh={}
+        if missing:
+            step=math.radians(1)/(2**self.detail_level)
+            for e,p in zip(missing,tessellate_many([d.route(e) for e in missing],step)):
+                fresh[e.id]=p; self.store(e.id,p)
+        self.edge_ids=[]; arrays=[]; sizes=[]; count=0
         self.geometry_capacity=False
         for e in edges:
-            if not d.layers[e.layer].visible: continue
-            p=self.edge_points(e)
+            p=fresh.get(e.id)
+            if p is None: p=self.edge_points(e)
             if count+len(p)*2>VERTEX_BUDGET:
                 self.geometry_capacity=True
                 continue
-            index=len(self.edge_ids); self.edge_ids.append(e.id)
-            a.append(p[:-1]); b.append(p[1:]); owners.extend([index]*(len(p)-1))
-            count+=len(p)*2
-        self.segment_a=np.concatenate(a) if a else np.empty((0,3))
-        self.segment_b=np.concatenate(b) if b else np.empty((0,3))
-        self.edge_owner=np.asarray(owners,dtype=int)
-        self.geometry_revision=d.revision
+            self.edge_ids.append(e.id); arrays.append(p); sizes.append(len(p)); count+=len(p)*2
+        if arrays:
+            points=np.concatenate(arrays); sizes=np.asarray(sizes)
+            boundary=np.ones(len(points)-1,dtype=bool); boundary[np.cumsum(sizes)[:-1]-1]=False
+            self.segment_a,self.segment_b=points[:-1][boundary],points[1:][boundary]
+            self.edge_owner=np.repeat(np.arange(len(sizes)),sizes-1)
+        else:
+            self.segment_a=self.segment_b=np.empty((0,3)); self.edge_owner=np.empty(0,dtype=int)
+        self.edge_index={k:i for i,k in enumerate(self.edge_ids)}
+        self.edge_src=np.fromiter((self.node_index[d.edges[k].source] for k in self.edge_ids),dtype=int,count=len(self.edge_ids))
+        self.edge_dst=np.fromiter((self.node_index[d.edges[k].target] for k in self.edge_ids),dtype=int,count=len(self.edge_ids))
+        self.edge_idrank=np.empty(len(self.edge_ids),dtype=int)
+        self.edge_idrank[np.argsort(np.array(self.edge_ids,dtype=object))]=np.arange(len(self.edge_ids))
+        self.geometry_revision=d.revision; self.geometry_builds+=1
 
-    def rebuild(self):
+    def store(self,key,p):
+        key=(key,self.detail_level)
+        while self.cache and self.cache_bytes+p.nbytes>GEOMETRY_BYTES:
+            _,old=self.cache.popitem(last=False); self.cache_bytes-=old.nbytes
+        if p.nbytes<=GEOMETRY_BYTES:
+            self.cache[key]=p; self.cache_bytes+=p.nbytes
+
+    def rebuild(self,allow_stale=False):
+        """Explicit rebuilds always re-rank; scheduled camera updates may reuse a recent ranking."""
         start=time.perf_counter()
         c=self.controller; d=c.document
         if c.closing: return
@@ -132,65 +169,107 @@ class GraphOverlay(QWidget):
         xy=pr.project(self.node_points)
         visible=pr.visible(self.node_points)
         inside=visible & (xy[:,0]>=-12)&(xy[:,0]<=self.width()+12)&(xy[:,1]>=-12)&(xy[:,1]<=self.height()+12)
-        self.node_xy={key:xy[i] for i,key in enumerate(self.node_ids) if visible[i]}
-        candidates=[key for i,key in enumerate(self.node_ids) if inside[i] and d.layers[d.nodes[key].layer].visible]
+        ids=self.node_ids
+        self.node_xy={ids[i]:xy[i] for i in np.flatnonzero(visible)}
+        order=[l for l in d.settings['order'] if d.layers[l].visible]
+        layer_rank={l:i for i,l in enumerate(order)}
+        node_rank=np.fromiter((layer_rank.get(l,-1) for l in self.node_layer),dtype=int,count=len(ids))
+        candidate=inside & (node_rank>=0)
         stage('project')
-        priority=set(d.settings['pins'])
-        if c.selected:
-            priority.add(c.selected)
-            if c.selected in d.edges:
-                e=d.edges[c.selected]; priority.update((e.source,e.target))
-        if c.reveal and c.selected in d.nodes:
-            for eid in d.adjacency[c.selected]:
-                e=d.edges[eid]; priority.update((e.source,e.target,eid))
-        # Deterministic degree ranking, with retained winners as a tie-breaker.
-        queues={l:[] for l in d.settings['order'] if d.layers[l].visible}
-        for key in candidates: queues[d.nodes[key].layer].append(key)
-        for q in queues.values(): q.sort(key=lambda k:(k not in priority,-d.degree.get(k,0),k not in self.old_survivors,k))
-        winners=[]; cells=defaultdict(list)
-        def accept(key):
-            p=self.node_xy[key]; cell=(int(p[0]//40),int(p[1]//40))
-            if d.settings['declutter'] and key not in priority:
-                if any(np.linalg.norm(p-self.node_xy[o])<24 for x in range(cell[0]-1,cell[0]+2) for y in range(cell[1]-1,cell[1]+2) for o in cells[(x,y)]): return
-            if len(winners)>=NODE_BUDGET: return
-            winners.append(key); cells[cell].append(key)
-        for key in sorted(set(candidates)&priority): accept(key)
-        priority_visible=set(winners)
-        from itertools import zip_longest
-        for row in zip_longest(*(q for q in queues.values()),fillvalue=None):
-            for key in row:
-                if key and key not in priority_visible: accept(key)
-        self.surviving=set(winners)
-        suppressed=set(candidates)-self.surviving
-        self.old_survivors=self.surviving
-        stage('rank')
-        self.capacity=self.geometry_capacity or len(winners)>=NODE_BUDGET
-        seg,idx=pr.clipped_pairs(self.segment_a,self.segment_b)
-        owners=self.edge_owner[idx]
-        seg,idx=clip_viewport(seg,self.width(),self.height()); owners=owners[idx]
-        eligible={k for k in self.edge_ids if d.edges[k].source not in suppressed and d.edges[k].target not in suppressed}
-        shown_edges=[]
-        lengths=np.bincount(owners,weights=np.linalg.norm(seg[:,1]-seg[:,0],axis=1),minlength=len(self.edge_ids))
-        ink_limit=self.width()*self.height()*0.12 if d.settings['declutter'] else float('inf')
-        ink=0.0
-        for index in sorted(set(owners),key=lambda i:(self.edge_ids[i] not in priority,self.edge_ids[i])):
-            e=self.edge_ids[index]
-            if e not in eligible: continue
-            if len(shown_edges)>=EDGE_BUDGET:
-                self.capacity=True
-                continue
-            if e not in priority and ink+lengths[index]>ink_limit: continue
-            shown_edges.append(e); ink+=lengths[index]
-        edge_set=set(shown_edges)
-        stage('edges')
-        self.badges={}
-        for key in winners:
-            hidden=sum(1 for e in d.adjacency[key] if d.edges[e].source in suppressed or d.edges[e].target in suppressed or (e in eligible and e not in edge_set))
-            if hidden: self.badges[key]=hidden
-        stage('badges')
+        # Bounded-staleness ranking (lod-tuning-plan.md): while only the camera moves,
+        # reproject the last ranked display and re-rank at most every RANK_REFRESH_S,
+        # plus once motion settles. Any other input change re-ranks immediately.
+        signature=(id(d),self.geometry_builds,d.revision,self.detail_level,c.selected,c.reveal,tuple(d.settings['pins']),d.settings['declutter'],tuple(order),self.width(),self.height())
+        now=time.perf_counter()
+        if allow_stale and signature==self.rank_signature and now-self.rank_time<RANK_REFRESH_S:
+            winners=[k for k in self.ranked_winners if k in self.node_xy]
+            shown=self.ranked_shown; edge_set=self.ranked_edge_set; queues={l:None for l in order}
+            subset=np.flatnonzero(shown[self.edge_owner]) if len(self.edge_owner) else np.zeros(0,dtype=int)
+            seg,idx=pr.clipped_pairs(self.segment_a[subset],self.segment_b[subset])
+            owners=self.edge_owner[subset][idx]
+            seg,idx=clip_viewport(seg,self.width(),self.height()); owners=owners[idx]
+            self.settle_timer.start(SETTLE_MS)
+            stage('reuse')
+        else:
+            priority=set(d.settings['pins'])
+            if c.selected:
+                priority.add(c.selected)
+                if c.selected in d.edges:
+                    e=d.edges[c.selected]; priority.update((e.source,e.target))
+            if c.reveal and c.selected in d.nodes:
+                for eid in d.adjacency[c.selected]:
+                    e=d.edges[eid]; priority.update((e.source,e.target,eid))
+            priority_nodes=np.zeros(len(ids),dtype=bool)
+            for key in priority:
+                i=self.node_index.get(key)
+                if i is not None: priority_nodes[i]=True
+            # Deterministic degree ranking, with retained winners as a tie-breaker,
+            # then layers interleaved round-robin in stack order.
+            cand=np.flatnonzero(candidate)
+            ranked=cand[np.lexsort((self.node_idrank[cand],~self.old_mask[cand],-self.node_degree[cand],~priority_nodes[cand]))]
+            lay=node_rank[ranked]
+            by_layer=np.argsort(lay,kind='stable')
+            group_start=np.searchsorted(lay[by_layer],lay[by_layer],side='left')
+            position=np.empty(len(ranked),dtype=int); position[by_layer]=np.arange(len(ranked))-group_start
+            ranked=ranked[np.lexsort((lay,position))]
+            xs=xy[:,0].tolist(); ys=xy[:,1].tolist()
+            declutter=d.settings['declutter']; cells=defaultdict(list); win=np.zeros(len(ids),dtype=bool); winners=[]
+            def accept(i):
+                x,y=xs[i],ys[i]; cx,cy=int(x//24),int(y//24)
+                if declutter and not priority_nodes[i]:
+                    for gx in (cx-1,cx,cx+1):
+                        for gy in (cy-1,cy,cy+1):
+                            for ox,oy in cells.get((gx,gy),()):
+                                if (x-ox)*(x-ox)+(y-oy)*(y-oy)<576: return
+                win[i]=True; winners.append(ids[i]); cells[(cx,cy)].append((x,y))
+            for i in sorted(np.flatnonzero(candidate & priority_nodes),key=lambda i:ids[i]):
+                if len(winners)>=NODE_BUDGET: break
+                accept(i)
+            for i in ranked.tolist():
+                if len(winners)>=NODE_BUDGET: break
+                if not win[i]: accept(i)
+            self.surviving=set(winners)
+            suppressed=candidate & ~win
+            self.old_survivors=self.surviving; self.old_mask=win
+            self.capacity=self.geometry_capacity or len(winners)>=NODE_BUDGET
+            queues={l:None for l in order}
+            stage('rank')
+            seg,idx=pr.clipped_pairs(self.segment_a,self.segment_b)
+            owners=self.edge_owner[idx]
+            seg,idx=clip_viewport(seg,self.width(),self.height()); owners=owners[idx]
+            eligible=~(suppressed[self.edge_src]|suppressed[self.edge_dst]) if len(self.edge_ids) else np.zeros(0,dtype=bool)
+            edge_priority=np.zeros(len(self.edge_ids),dtype=bool)
+            for key in priority:
+                i=self.edge_index.get(key)
+                if i is not None: edge_priority[i]=True
+            lengths=np.bincount(owners,weights=np.linalg.norm(seg[:,1]-seg[:,0],axis=1),minlength=len(self.edge_ids))
+            ink_limit=self.width()*self.height()*0.12 if declutter else float('inf')
+            ink=0.0; shown=np.zeros(len(self.edge_ids),dtype=bool); shown_count=0
+            present=np.unique(owners)
+            present=present[np.lexsort((self.edge_idrank[present],~edge_priority[present]))]
+            present=present[eligible[present]]
+            for i,prio,size in zip(present.tolist(),edge_priority[present].tolist(),lengths[present].tolist()):
+                if shown_count>=EDGE_BUDGET:
+                    self.capacity=True
+                    continue
+                if not prio and ink+size>ink_limit: continue
+                shown[i]=True; shown_count+=1; ink+=size
+            edge_set={self.edge_ids[i] for i in np.flatnonzero(shown)}
+            stage('edges')
+            self.badges={}
+            suppressed_ids={ids[i] for i in np.flatnonzero(suppressed)}
+            for key in winners:
+                hidden=0
+                for e in d.adjacency[key]:
+                    edge=d.edges[e]; i=self.edge_index.get(e)
+                    if edge.source in suppressed_ids or edge.target in suppressed_ids or (i is not None and eligible[i] and not shown[i]): hidden+=1
+                if hidden: self.badges[key]=hidden
+            stage('badges')
+            self.rank_signature=signature; self.rank_time=now; self.settle_timer.stop()
+            self.ranked_winners=winners; self.ranked_shown=shown; self.ranked_edge_set=edge_set
         self.layer_draw={l:{'edges':[],'selected':[],'arrows':QPainterPath(),'nodes':[],'selected_nodes':[],'handles':[], 'labels':[]} for l in queues}
         self.primitives=[]; self.grid=defaultdict(list)
-        drawn=(np.isin(owners,[i for i,k in enumerate(self.edge_ids) if k in edge_set]))
+        drawn=shown[owners] if len(owners) else np.zeros(0,dtype=bool)
         seg,owners=seg[drawn],owners[drawn]
         self.edge_hit_segments=seg
         self.edge_hit_keys=[self.edge_ids[i] for i in owners]

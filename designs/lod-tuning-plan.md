@@ -173,6 +173,10 @@ Same hardware and method as the 0.4 verification (M3 / 8 GiB, warmed 60 s run).
    documented rather than gated.
 6. Node symbols **scale with zoom**, controlled by one named, tunable size curve for
    UX fine-tuning.
+7. **Draw real edges when endpoints are hidden** (decided after the phase 0
+   baseline): an edge's true geometry is drawn, de-emphasized, even when its
+   endpoint nodes are decluttered, within the edge budgets. No synthetic edges.
+   Implemented in phase 2.
 
 ## Questions for review (original)
 

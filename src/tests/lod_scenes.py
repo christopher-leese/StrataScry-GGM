@@ -15,7 +15,8 @@ import json
 import math
 from pathlib import Path
 import numpy as np
-from stratascry.graph.model import Document, Layer, Node, Edge, uid
+import uuid
+from stratascry.graph.model import Document, Layer, Node, Edge
 
 CENTER = (-90.0, 25.0)
 COLORS = ('#62cde5', '#f2a65a', '#9be38b')
@@ -30,23 +31,30 @@ class Scene:
 
 class _Builder:
     def __init__(self, seed):
-        self.d = Document(); self.rng = np.random.default_rng(seed)
-        self.layer = next(iter(self.d.layers))
+        self.rng = np.random.default_rng(seed)
+        # IDs are seeded too: they are the final ranking tie-breaker, so random IDs
+        # would make display results differ between runs.
+        self.ids = np.random.default_rng(seed + 1000)
+        self.d = Document(empty=True); self.d.id = self.uid()
+        self.layer = self.add_layer('Network')
+
+    def uid(self):
+        return str(uuid.UUID(bytes=self.ids.bytes(16), version=4))
 
     def add_layer(self, name):
-        layer = Layer(uid(), name, color=COLORS[len(self.d.layers) % len(COLORS)])
+        layer = Layer(self.uid(), name, color=COLORS[len(self.d.layers) % len(COLORS)])
         self.d.layers[layer.id] = layer; self.d.settings['order'].append(layer.id)
         return layer.id
 
     def node(self, lon, lat, layer=None, kind='generic'):
         layer = layer or self.layer; l = self.d.layers[layer]
-        key = uid(); self.d.nodes[key] = Node(key, layer, float(lon), float(lat), l.node_next, kind=kind)
+        key = self.uid(); self.d.nodes[key] = Node(key, layer, float(lon), float(lat), l.node_next, kind=kind)
         l.node_next += 1
         return key
 
     def edge(self, a, b, directed=False):
         layer = self.d.nodes[a].layer; l = self.d.layers[layer]
-        key = uid(); self.d.edges[key] = Edge(key, layer, a, b, l.edge_next, directed=directed)
+        key = self.uid(); self.d.edges[key] = Edge(key, layer, a, b, l.edge_next, directed=directed)
         l.edge_next += 1
         return key
 

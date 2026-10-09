@@ -67,6 +67,53 @@ def tessellate(coords, step=math.radians(1), max_points=4096):
     return np.concatenate(result)
 
 
+def tessellate_many(routes, step=math.radians(1), max_points=4096):
+    """Batch form of ``tessellate`` for many routes; returns one array per route.
+
+    Produces the same points as calling ``tessellate`` on each route. Routes that
+    hit ``max_points`` or contain an antipodal segment fall back to the scalar
+    function (which raises for antipodal input).
+    """
+    if not routes:
+        return []
+    sizes = np.fromiter((len(r) for r in routes), dtype=int, count=len(routes))
+    points = unit(np.concatenate([np.asarray(r, dtype=float).reshape(-1, 2) for r in routes]))
+    ends = np.cumsum(sizes); starts = ends - sizes
+    # Segments are consecutive point pairs that do not cross a route boundary.
+    within = np.ones(len(points) - 1, dtype=bool)
+    within[ends[:-1] - 1] = False
+    a, b = points[:-1][within], points[1:][within]
+    route_of_segment = np.repeat(np.arange(len(routes)), sizes - 1)
+    theta = np.arctan2(np.linalg.norm(np.cross(a, b), axis=1), np.einsum('ij,ij->i', a, b))
+    counts = np.maximum(1, np.ceil(theta / step).astype(int))
+    per_route = np.bincount(route_of_segment, weights=counts, minlength=len(routes)).astype(int)
+    antipodal = np.bincount(route_of_segment, weights=(math.pi - theta < ANTIPODAL_EPS), minlength=len(routes)) > 0
+    scalar = (per_route + 1 > max_points) | antipodal
+    keep = ~scalar[route_of_segment]
+    a, b, theta, counts, seg_route = a[keep], b[keep], theta[keep], counts[keep], route_of_segment[keep]
+    total = int(counts.sum())
+    seg_of_point = np.repeat(np.arange(len(counts)), counts)
+    first = np.cumsum(counts) - counts
+    t = (np.arange(total) - first[seg_of_point]) / counts[seg_of_point]
+    th = theta[seg_of_point]; pa, pb = a[seg_of_point], b[seg_of_point]
+    safe = np.where(th < 1e-12, 1.0, np.sin(th))
+    sampled = np.where((th < 1e-12)[:, None], pa,
+                       (np.sin((1 - t) * th)[:, None] * pa + np.sin(t * th)[:, None] * pb) / safe[:, None])
+    route_of_point = seg_route[seg_of_point]
+    vector_routes = np.flatnonzero(~scalar)
+    lengths = np.zeros(len(routes), dtype=int); lengths[vector_routes] = per_route[vector_routes] + 1
+    out_end = np.cumsum(lengths); out_start = out_end - lengths
+    out = np.empty((int(lengths.sum()), 3))
+    # Each route's sampled points shift by the final points of earlier routes.
+    shift = np.cumsum(~scalar) - 1
+    out[np.arange(total) + shift[route_of_point]] = sampled
+    out[out_end[vector_routes] - 1] = points[ends[vector_routes] - 1]
+    result = []
+    for i, route in enumerate(routes):
+        result.append(tessellate(route, step, max_points) if scalar[i] else out[out_start[i]:out_end[i]])
+    return result
+
+
 class Projection:
     """Matches the north-up perspective camera using Qt logical pixels throughout."""
     def __init__(self, navigation, width, height):

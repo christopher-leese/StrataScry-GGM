@@ -18,8 +18,7 @@ VIEWS = {'global': 3.2, 'regional': 1.06, 'close': 1.01}
 def test_scene_is_seeded_and_valid(name):
     a, b = lod_scenes.SHORT[name](), lod_scenes.SHORT[name]()
     assert len(a.document.nodes) == len(b.document.nodes) and len(a.document.edges) == len(b.document.edges)
-    coords = lambda d: sorted((n.lon, n.lat) for n in d.nodes.values())
-    assert coords(a.document) == coords(b.document)
+    assert lod_scenes.fingerprint(a.document) == lod_scenes.fingerprint(b.document)  # IDs included
     reloaded = Document.from_dict(a.document.to_dict())
     assert lod_scenes.fingerprint(reloaded) == lod_scenes.fingerprint(a.document)
 

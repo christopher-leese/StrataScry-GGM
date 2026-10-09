@@ -23,6 +23,10 @@ phase; each section states what was executed.
 
 ### What the declutter shows (×1)
 
+These figures used scene IDs that were still random per run; IDs are the final
+ranking tie-breaker, so a few counts vary slightly between runs. Phase 1 seeds the
+IDs and records reproducible figures.
+
 | Scene | View | On screen | Shown nodes | Shown edges | Notes |
 |---|---|---:|---:|---:|---|
 | Dense hub | regional | 671 | 470 | 946 | Hub retained |
@@ -74,3 +78,81 @@ Stage columns are milliseconds. Peak process RSS stayed between 522 and 617 MiB.
 - Painting is not the bottleneck (≤ 13 ms p95).
 - Display issue for review: chains of low-degree nodes lose their edges entirely
   once neighbors are suppressed (see the sparse chain rows).
+
+## Phase 1: performance (October 9, 2026)
+
+### Changes
+
+- **Batch tessellation** (`graph/geometry.py: tessellate_many`): all uncached edges
+  for a detail level are sampled in one vectorized pass. Output is identical to the
+  per-edge `tessellate` (checked at all seven detail levels on 2,000 random routes,
+  including zero-length and near-dateline routes). On the ×10 bridge scene, edge
+  sampling dropped from about 1,060 ms to 46 ms per detail level.
+- **Vectorized ranking and edge budget** (`graph/renderer.py`): node ordering uses
+  NumPy sorts over precomputed degree, ID-rank and layer arrays; the 24-pixel
+  spacing test uses plain float arithmetic in a 24-pixel grid; edge eligibility
+  and the drawn-segment mask are array operations.
+- **Bounded-staleness ranking**: scheduled camera updates reproject the last ranked
+  display and re-rank at most every `RANK_REFRESH_S` (0.1 s), and again 120 ms
+  (`SETTLE_MS`) after motion stops. Any change to the document, selection, reveal,
+  pins, decluttering, layer order or viewport size re-ranks immediately. Explicit
+  `rebuild()` calls always re-rank, so tests and tools stay exact.
+- **Seeded scene IDs** in `lod_scenes.py` so display results are reproducible.
+
+### Executed checks
+
+- Display equivalence: `lod_baseline.py` on all five scenes, three views and 30 pan
+  steps gives **identical** results with the phase 0 renderer and the phase 1
+  renderer (same seeded scenes, same session). The optimization does not change
+  what is shown.
+- Tests: graph, geometry and LOD-scene tests **84 passed, 1 failed**. The failure,
+  `test_viewing_blocks_commands_and_text_b_does_not_toggle`, and
+  `test_gui.py::test_keyboard_shortcuts_and_mouse_navigation` both depend on the test
+  window receiving keyboard focus. Both fail identically on the unchanged phase 0
+  code in the same session (the Mac was idle with another app in front), so they are
+  environmental here; they passed in the phase 0 session.
+
+### Timing, same-session comparison
+
+Measured back to back on the same machine state. The desktop was idle during this
+session, which slowed painting for every run (old and new alike), so absolute ×1
+numbers are not comparable with the phase 0 table; the old/new pair is.
+
+| Original benchmark scene | Size | Overlay rebuild p95 | Heartbeat p95 | Max pause | First geometry | Rank stage p95 |
+|---|---|---:|---:|---:|---:|---:|
+| Phase 0 code | ×10 | 91.3 ms | 102.9 ms | 1,930 ms | 1,775 ms | 68.2 |
+| Phase 1 code | ×10 | 30.4 | 40.5 | 214 | 174 | 7.7 |
+| Phase 0 code | ×1 | 73.5 | 116.9 | 1,369 | 198 | 18.7 |
+| Phase 1 code | ×1 | 49.6 | 107.3 | 760 | 23 | 5.8 |
+
+Phase 1, ×10 stress variants of the LOD scenes (20 s):
+
+| Scene | Overlay rebuild p95 | Heartbeat p95 | Max pause | First geometry |
+|---|---:|---:|---:|---:|
+| Dense hub | 39.2 ms | 33.9 ms | 158 ms | 73 ms |
+| Sparse chain | 7.6 | 17.6 | 75 | 16 |
+| Low-degree bridge | 26.6 | 26.3 | 182 | 154 |
+| Overlapping layers | 28.7 | 37.1 | 129 | 105 |
+| Mixed directions | 19.4 | 33.2 | 101 | 60 |
+
+### Phase 1 conclusions
+
+- Stress scenes now stay under the 50 ms heartbeat target and mostly under the
+  200 ms pause limit (original benchmark ×10: 214 ms worst case, down from 1.9 s).
+  They were documented-only targets; these results exceed them.
+- Ranking is no longer the bottleneck (rank stage p95 ≤ 11 ms at ×10).
+- **Open:** the ×1 acceptance gates must be re-measured with an active desktop; the
+  ×1 runs in this session were dominated by slow painting (paint p95 30–74 ms in
+  both old and new code), which phase 1 did not change.
+
+### Seeded display figures (×1, identical for phase 0 and phase 1 renderers)
+
+| Scene | View | On screen | Shown nodes | Shown edges | Notes |
+|---|---|---:|---:|---:|---|
+| Dense hub | regional | 671 | 470 | 946 | Hub retained |
+| Sparse chain | regional | 260 | 43 | 0 | Path edges drawn 0 / 259 |
+| Sparse chain | close | 24 | 26 | 27 | Path edges drawn 23 / 23 |
+| Low-degree bridge | global | 1,000 | 2 | 0 | Bridge nodes shown 0 / 6 |
+| Low-degree bridge | regional | 1,000 | 119 | 28 | Bridge nodes 6 / 6; path edges 5 / 7 |
+| Overlapping layers | regional | 1,200 | 178 | 105 | |
+| Mixed directions | regional | 500 | 172 | 255 | |
