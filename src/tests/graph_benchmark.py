@@ -1,7 +1,9 @@
 """Reproducible desktop benchmark. Run from the repository with its venv Python.
 
 python src/tests/graph_benchmark.py --seconds 60 --output /tmp/graph-benchmark
-The stress option measures a larger scene without claiming supported capacity.
+python src/tests/graph_benchmark.py --scene hub --scale 10 --seconds 20 --output /tmp/hub-x10
+The stress option (or --scale 10) measures a larger scene without claiming supported
+capacity. --scene picks one of the LOD evaluation scenes in lod_scenes.py.
 """
 import argparse
 import json
@@ -9,12 +11,15 @@ import math
 from pathlib import Path
 import resource
 import time
+import sys
 import numpy as np
 from PySide6.QtCore import QTimer,QPointF,QEventLoop
 from PySide6.QtTest import QTest
 from stratascry.app import create_application
 from stratascry.window import MainWindow
 from stratascry.graph.model import Document,Node,Edge,Waypoint
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+import lod_scenes
 
 
 def make_scene(n=1000,m=5000):
@@ -33,13 +38,32 @@ def make_scene(n=1000,m=5000):
 
 def main():
     parser=argparse.ArgumentParser(); parser.add_argument('--seconds',type=float,default=60); parser.add_argument('--output',type=Path,required=True); parser.add_argument('--stress',action='store_true')
+    parser.add_argument('--scene',choices=['default',*lod_scenes.SHORT],default='default'); parser.add_argument('--scale',type=int,default=1)
     args=parser.parse_args(); args.output.mkdir(parents=True,exist_ok=True)
     app=create_application([]); loop=QEventLoop(); window=MainWindow(); window.show(); window.raise_(); window.activateWindow(); QTest.qWait(250)
-    c=window.graph; d,layer=make_scene(10000,50000) if args.stress else make_scene()
+    c=window.graph
+    if args.scene=='default':
+        scale=10 if args.stress else args.scale
+        d,layer=make_scene(1000*scale,5000*scale)
+    else:
+        d=lod_scenes.SHORT[args.scene](args.scale).document; layer=d.settings['order'][0]
+    window.globe.navigation.longitude,window.globe.navigation.latitude=lod_scenes.CENTER
     start=time.perf_counter(); c.install_document(d); c.active=layer; c.overlay.rebuild(); first_ms=(time.perf_counter()-start)*1000
     QTest.qWait(1500)
     heartbeat=[]; samples=[]; start=time.perf_counter(); last=[start]; ticks=[0]; phase=[-1]
     phase_markers=[]
+    churn=[]; last_shown=[None]
+    def measure_churn():
+        shown=c.overlay.surviving
+        if shown is last_shown[0]: return
+        previous=last_shown[0]; last_shown[0]=shown
+        if previous is None or not shown: return
+        w,h=c.overlay.width(),c.overlay.height()
+        def interior(k):
+            p=c.overlay.node_xy.get(k)
+            return p is not None and 24<=p[0]<=w-24 and 24<=p[1]<=h-24
+        changed=sum(1 for k in previous^shown if interior(k))
+        churn.append(changed/len(shown))
     def beat():
         now=time.perf_counter(); heartbeat.append((now-last[0])*1000); last[0]=now
     def tick():
@@ -50,8 +74,9 @@ def main():
         if section!=phase[0]:
             phase[0]=section; phase_markers.append({'phase':section,'elapsed':elapsed})
             window.globe.navigation.distance=(3.2,1.06,1.01)[section]
+        measure_churn()
         t=time.perf_counter()
-        window.globe.navigation.longitude=-90+0.2*math.sin(elapsed*0.5)
+        window.globe.navigation.longitude=lod_scenes.CENTER[0]+0.2*math.sin(elapsed*0.5)
         window.globe.apply_camera()
         if ticks[0]%90==0:
             visible=list(c.overlay.surviving)
@@ -67,7 +92,9 @@ def main():
     loop.exec()
     def stats(values):
         return {'median_ms':float(np.median(values)),'p95_ms':float(np.percentile(values,95)),'max_ms':float(max(values))} if values else {}
-    result={'scene':{'nodes':len(d.nodes),'edges':len(d.edges),'waypoints':sum(len(e.waypoints) for e in d.edges.values())},'viewport_logical':[window.globe.width(),window.globe.height()],'device_pixel_ratio':window.globe.devicePixelRatioF(),'duration_s':time.perf_counter()-start,'ticks':ticks[0], 'first_geometry_ms':first_ms,'input_work':stats(samples),'overlay_update':stats(c.overlay.times),'heartbeat':stats(heartbeat),'rss_mib':resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2,'display':c.overlay.stats,'phase_changes':phase_markers,'tile_cache_mib':window.blue_marble.cache.bytes/1024**2,'tile_actors':len(window.blue_marble.actors)}
+    churn_stats={'median':float(np.median(churn)),'p95':float(np.percentile(churn,95)),'samples':len(churn)} if churn else {}
+    stages={k:stats(v) for k,v in c.overlay.stage_times.items()}
+    result={'scene_name':args.scene,'scale':args.scale if args.scene!='default' else (10 if args.stress else args.scale),'churn_fraction':churn_stats,'stages':stages,'scene':{'nodes':len(d.nodes),'edges':len(d.edges),'waypoints':sum(len(e.waypoints) for e in d.edges.values())},'viewport_logical':[window.globe.width(),window.globe.height()],'device_pixel_ratio':window.globe.devicePixelRatioF(),'duration_s':time.perf_counter()-start,'ticks':ticks[0], 'first_geometry_ms':first_ms,'input_work':stats(samples),'overlay_update':stats(c.overlay.times),'heartbeat':stats(heartbeat),'rss_mib':resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2,'display':c.overlay.stats,'phase_changes':phase_markers,'tile_cache_mib':window.blue_marble.cache.bytes/1024**2,'tile_actors':len(window.blue_marble.actors)}
     (args.output/'metrics.json').write_text(json.dumps(result,indent=2)+'\n')
     window.grab().save(str(args.output/'scene.png')); print(json.dumps(result))
     d.mark_saved(); window.close(); QTest.qWait(200)

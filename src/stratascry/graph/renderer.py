@@ -56,6 +56,8 @@ class GraphOverlay(QWidget):
         self.layer_draw={}; self.grid=defaultdict(list); self.primitives=[]
         self.node_xy={}; self.surviving=set(); self.badges={}
         self.old_survivors=set(); self.capacity=False; self.stats={}; self.times=[]
+        # Per-stage rebuild timings (ms, last 1000) for the benchmark; see lod-tuning-plan.md.
+        self.stage_times=defaultdict(list)
         self.projection=Projection(controller.globe.navigation,controller.globe.width(),controller.globe.height())
         self.timer=QTimer(self); self.timer.setSingleShot(True); self.timer.timeout.connect(self.rebuild)
         self.setGeometry(controller.globe.rect())
@@ -120,12 +122,19 @@ class GraphOverlay(QWidget):
         if level!=self.detail_level:
             self.detail_level=level; self.geometry_revision=-1
         if self.geometry_revision!=d.revision: self.build_geometry()
+        clock=[start]
+        def stage(name):
+            now=time.perf_counter(); times=self.stage_times[name]
+            times.append((now-clock[0])*1000); clock[0]=now
+            if len(times)>1000: del times[:-1000]
+        stage('geometry')
         pr=self.projection
         xy=pr.project(self.node_points)
         visible=pr.visible(self.node_points)
         inside=visible & (xy[:,0]>=-12)&(xy[:,0]<=self.width()+12)&(xy[:,1]>=-12)&(xy[:,1]<=self.height()+12)
         self.node_xy={key:xy[i] for i,key in enumerate(self.node_ids) if visible[i]}
         candidates=[key for i,key in enumerate(self.node_ids) if inside[i] and d.layers[d.nodes[key].layer].visible]
+        stage('project')
         priority=set(d.settings['pins'])
         if c.selected:
             priority.add(c.selected)
@@ -154,6 +163,7 @@ class GraphOverlay(QWidget):
         self.surviving=set(winners)
         suppressed=set(candidates)-self.surviving
         self.old_survivors=self.surviving
+        stage('rank')
         self.capacity=self.geometry_capacity or len(winners)>=NODE_BUDGET
         seg,idx=pr.clipped_pairs(self.segment_a,self.segment_b)
         owners=self.edge_owner[idx]
@@ -172,10 +182,12 @@ class GraphOverlay(QWidget):
             if e not in priority and ink+lengths[index]>ink_limit: continue
             shown_edges.append(e); ink+=lengths[index]
         edge_set=set(shown_edges)
+        stage('edges')
         self.badges={}
         for key in winners:
             hidden=sum(1 for e in d.adjacency[key] if d.edges[e].source in suppressed or d.edges[e].target in suppressed or (e in eligible and e not in edge_set))
             if hidden: self.badges[key]=hidden
+        stage('badges')
         self.layer_draw={l:{'edges':[],'selected':[],'arrows':QPainterPath(),'nodes':[],'selected_nodes':[],'handles':[], 'labels':[]} for l in queues}
         self.primitives=[]; self.grid=defaultdict(list)
         drawn=(np.isin(owners,[i for i,k in enumerate(self.edge_ids) if k in edge_set]))
@@ -222,6 +234,7 @@ class GraphOverlay(QWidget):
                         self.layer_draw[edge.layer]['handles'].append(p)
                         self.add_hit(edge.layer,0,(edge.id,w.id),np.asarray([p,p]))
         self.stats={'nodes':len(winners),'edges':len(edge_set),'segments':len(seg),'cache_mib':self.cache_bytes/1024**2,'capacity':self.capacity}
+        stage('draw_lists')
         self.times.append((time.perf_counter()-start)*1000); self.times=self.times[-1000:]
         self.update(); c.update_status_only()
 
@@ -259,6 +272,12 @@ class GraphOverlay(QWidget):
         return list(dict.fromkeys(c[-1] for c in candidates if c[0]==top))
 
     def paintEvent(self,event):
+        started=time.perf_counter()
+        self._paint(event)
+        times=self.stage_times['paint']; times.append((time.perf_counter()-started)*1000)
+        if len(times)>1000: del times[:-1000]
+
+    def _paint(self,event):
         painter=QPainter(self)
         # VTK paints the map outside Qt's backing store. Replace the overlay's
         # dirty pixels (including alpha) before drawing; SourceOver with a

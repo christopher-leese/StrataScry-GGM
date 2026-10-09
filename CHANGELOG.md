@@ -10,6 +10,12 @@ before 0.4.0 were reconstructed from the design and verification records in
 ## [Unreleased]
 
 ### Added
+- Five seeded LOD evaluation scenes (`src/tests/lod_scenes.py`, ×1 and ×10) with
+  display-semantics and fingerprint tests (`src/tests/test_lod_scenes.py`).
+- Benchmark `--scene` / `--scale` options, churn and per-stage timings; deterministic
+  display metrics in `src/tests/lod_baseline.py`.
+- Per-stage rebuild timing in the graph renderer (no display change).
+- Phase 0 baseline in `designs/lod-tuning-verification.md`.
 - `designs/lod-tuning-plan.md` (proposed) and `designs/importance-attribute-notes.md`.
 - GUI test that project file commands live under File, ahead of Quit.
 - This changelog, included in source distributions.
