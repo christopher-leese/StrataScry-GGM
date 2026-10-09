@@ -13,6 +13,7 @@ import numpy as np
 import pyvista as pv
 from PySide6.QtCore import Qt, Signal
 from pyvistaqt import QtInteractor
+from PySide6.QtWidgets import QApplication
 
 from .geometry import GlobeCamera, globe_mesh_data, surface_point
 
@@ -25,6 +26,10 @@ class GlobeView(QtInteractor):
         super().__init__(parent=parent, auto_update=False, multi_samples=4)
         self.navigation = GlobeCamera()
         self._drag_position = None
+        self._right_press = None
+        self._right_dragged = False
+        self.graph_controller = None
+        self.setMouseTracking(True)
         self.setAcceptDrops(False)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
@@ -89,34 +94,54 @@ class GlobeView(QtInteractor):
     def mousePressEvent(self, event):
         self.setFocus()
         if event.button() == Qt.MouseButton.LeftButton:
-            # macOS Control-click is the equivalent of a secondary click.
             if sys.platform == "darwin" and event.modifiers() & Qt.KeyboardModifier.MetaModifier:
+                if self.graph_controller: self.graph_controller.cancel_drag()
                 self.context_requested.emit(event.globalPosition().toPoint())
-            else:
-                self._drag_position = event.position()
-                self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            elif self._right_press is None and self.graph_controller:
+                self.graph_controller.pointer_press(event.position())
         elif event.button() == Qt.MouseButton.RightButton:
-            self.context_requested.emit(event.globalPosition().toPoint())
+            if self.graph_controller: self.graph_controller.cancel_drag()
+            self._right_press = event.position()
+            self._drag_position = event.position()
+            self._right_dragged = False
         event.accept()
 
     def mouseMoveEvent(self, event):
-        if self._drag_position is not None:
-            delta = event.position() - self._drag_position
+        if self._right_press is not None:
+            if (event.position()-self._right_press).manhattanLength() >= QApplication.startDragDistance():
+                self._right_dragged = True
+            if self._right_dragged:
+                delta = event.position() - self._drag_position
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
+                degrees_per_pixel = math.degrees(
+                    2 * (self.navigation.distance - 1)
+                    * math.tan(math.radians(self.navigation.VIEW_ANGLE / 2))
+                    / max(1, self.height()))
+                self.orbit(-delta.x() * degrees_per_pixel, delta.y() * degrees_per_pixel)
             self._drag_position = event.position()
-            # Scale navigation with camera distance so close-up dragging is useful.
-            degrees_per_pixel = math.degrees(
-                2 * (self.navigation.distance - 1)
-                * math.tan(math.radians(self.navigation.VIEW_ANGLE / 2))
-                / max(1, self.height()))
-            self.orbit(-delta.x() * degrees_per_pixel,
-                       delta.y() * degrees_per_pixel)
+        elif self.graph_controller:
+            self.graph_controller.pointer_move(event.position())
         event.accept()
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._drag_position = None
+        if event.button() == Qt.MouseButton.RightButton:
+            popup = self._right_press is not None and not self._right_dragged and (event.position()-self._right_press).manhattanLength() < QApplication.startDragDistance()
+            self._right_press = self._drag_position = None
             self.setCursor(Qt.CursorShape.OpenHandCursor)
+            if popup: self.context_requested.emit(event.globalPosition().toPoint())
+        elif event.button() == Qt.MouseButton.LeftButton and self.graph_controller:
+            self.graph_controller.pointer_release(event.position())
         event.accept()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if getattr(self, "graph_controller", None): self.graph_controller.camera_changed()
+
+    def leaveEvent(self, event):
+        if self.graph_controller:
+            self.graph_controller.ghost = None
+            self.graph_controller.overlay.update()
+        super().leaveEvent(event)
 
     def wheelEvent(self, event):
         delta = event.angleDelta().y() / 120
@@ -142,6 +167,8 @@ class GlobeView(QtInteractor):
         event.accept()
 
     def focusOutEvent(self, event):
-        self._drag_position = None
+        self._drag_position = self._right_press = None
+        self._right_dragged = False
+        if self.graph_controller: self.graph_controller.focus_lost()
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         super().focusOutEvent(event)

@@ -93,9 +93,9 @@ def test_keyboard_shortcuts_and_mouse_navigation(window):
     assert nav.distance == pytest.approx(initial)
     QTest.keyClick(globe, Qt.Key.Key_Right)
     assert nav.longitude == -80
-    QTest.mousePress(globe, Qt.MouseButton.LeftButton, pos=QPoint(300, 250))
+    QTest.mousePress(globe, Qt.MouseButton.RightButton, pos=QPoint(300, 250))
     QTest.mouseMove(globe, QPoint(350, 270))
-    QTest.mouseRelease(globe, Qt.MouseButton.LeftButton, pos=QPoint(350, 270))
+    QTest.mouseRelease(globe, Qt.MouseButton.RightButton, pos=QPoint(350, 270))
     assert nav.longitude < -80
     assert nav.latitude > 25
     position = QPointF(350, 270)

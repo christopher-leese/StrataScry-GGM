@@ -80,6 +80,15 @@ class MainWindow(QMainWindow):
         else:
             from .blue_marble.controller import BlueMarbleController
             self.blue_marble = BlueMarbleController(self, tile_path)
+        from .graph.controller import GraphController
+        self.graph = GraphController(self)
+        layout.insertWidget(layout.indexOf(self.globe), self.graph.hotbar)
+        # Bare navigation shortcuts must not steal input from properties fields.
+        for key in ("zoom_in", "zoom_out", "west", "east", "north", "south"):
+            action = self.actions[key]
+            self.removeAction(action)
+            self.globe.addAction(action)
+            action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
         # Reset after layout has established the actual viewport aspect ratio.
         QTimer.singleShot(0, self.globe.reset_view)
 
@@ -173,14 +182,22 @@ class MainWindow(QMainWindow):
     def _show_navigation_help(self):
         command = "⌘" if sys.platform == "darwin" else "Ctrl+"
         QMessageBox.information(self, "Globe Navigation",
-            "Drag with the left mouse button to rotate the globe.\n"
+            "Drag with the right mouse button to rotate the globe.\n"
             "Scroll vertically (mouse wheel or trackpad) to zoom.\n"
             "Right-click, or Control-click on macOS, for the context menu.\n\n"
             f"Zoom: {command}+ / {command}− (or + / −)\n"
             f"Reset view: {command}0\n"
             "Rotate: arrow keys\n"
             f"Latitude / longitude grid: {command}G\n"
-            "Context menu: Shift+F10\n\n"
+            "Context menu: stationary right click or Shift+F10\n"
+            "B: toggle graph-building mode (viewing is read-only).\n"
+            "Select a visible layer and click Active before editing.\n"
+            "Hotbar Add Node: hover a ghost, then click to place.\n"
+            "Click the selected Add Node tool again for click / coordinate placement.\n"
+            "Add Edge: click source, optional shape points, then target.\n"
+            "Select / Move: inspect or drag a node/shape handle.\n"
+            "The topmost visible layer under the pointer is picked.\n"
+            "Escape cancels a draft; saved display edits share graph undo.\n\n"
             "All navigation actions are available in the View menu.\n"
             "The globe stays north-up. Zoom stops above the surface.\n"
             "Blue Marble detail loads from local tiles as you zoom and pan.\n"
@@ -205,6 +222,9 @@ class MainWindow(QMainWindow):
         box.exec()
 
     def closeEvent(self, event):
+        if hasattr(self, "graph") and not self.graph.request_close():
+            event.ignore()
+            return
         if self.maps is not None and not self.maps.request_close():
             event.ignore()
             return
