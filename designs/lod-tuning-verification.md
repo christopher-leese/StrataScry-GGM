@@ -141,9 +141,27 @@ Phase 1, ×10 stress variants of the LOD scenes (20 s):
   200 ms pause limit (original benchmark ×10: 214 ms worst case, down from 1.9 s).
   They were documented-only targets; these results exceed them.
 - Ranking is no longer the bottleneck (rank stage p95 ≤ 11 ms at ×10).
-- **Open:** the ×1 acceptance gates must be re-measured with an active desktop; the
-  ×1 runs in this session were dominated by slow painting (paint p95 30–74 ms in
-  both old and new code), which phase 1 did not change.
+- The ×1 runs in the idle session were dominated by slow painting in both old and
+  new code; they were re-measured with an active desktop below.
+
+### Acceptance re-measurement, active desktop (October 9, 2026)
+
+`STRATASCRY_GUI_TESTS=1 .venv/bin/python -m pytest -q`: **134 passed**, including both
+keyboard-focus tests. Timing at ×1, 60 s per scene, old and new code back to back:
+
+| Scene | Code | Overlay rebuild p95 | Heartbeat p95 | Max pause | First geometry | Rank stage p95 |
+|---|---|---:|---:|---:|---:|---:|
+| Original benchmark | Phase 0 | 14.8 ms | 33.1 ms | 209 ms | 215 ms | 6.1 |
+| Original benchmark | Phase 1 | 8.8 | 27.5 | 108 | 43 | 1.0 |
+| Dense hub | Phase 1 | 6.6 | 25.7 | 88 | 8 | 1.2 |
+| Sparse chain | Phase 1 | 1.5 | 18.7 | 67 | 16 | 0.4 |
+| Low-degree bridge | Phase 1 | 4.1 | 19.8 | 93 | 14 | 1.2 |
+| Overlapping layers | Phase 1 | 4.6 | 19.5 | 92 | 24 | 1.5 |
+| Mixed directions | Phase 1 | 5.1 | 29.8 | 91 | 12 | 0.7 |
+
+**All acceptance gates are now met**: rebuild p95 ≤ 16 ms, heartbeat p95 < 50 ms, and
+no pause over 200 ms in any scene (the phase 0 code still pauses 209 ms on the
+original scene). Peak RSS 522–537 MiB.
 
 ### Seeded display figures (×1, identical for phase 0 and phase 1 renderers)
 
